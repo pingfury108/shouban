@@ -3,7 +3,7 @@ import ImageViewer from './ImageViewer'
 
 const ImageProcessor = () => {
   const [selectedImage, setSelectedImage] = useState(null)
-  const [imagePreview, setImagePreview] = useState('')
+  const [imagePreview, setImagePreview] = useState(null)
   const [prompt, setPrompt] = useState("turn this photo into a character figure. Behind it, place a box with the character's image printed on it, and a computer showing the Blender modeling process on its screen. In front of the box, add a round plastic base with the character figure standing on it. Make the PVC material look clear, and set the scene indoors if possible");
   const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState(null)
@@ -138,7 +138,7 @@ const ImageProcessor = () => {
     }
     
     setSelectedImage(null)
-    setImagePreview('')
+    setImagePreview(null)
     setResult(null)
     setError('')
     setStep(1)
@@ -175,38 +175,34 @@ const ImageProcessor = () => {
 
       {/* 步骤1: 上传图片 */}
       {step === 1 && (
-        <div className="card bg-base-200 shadow-2xl border border-base-300">
-          <div className="card-body">
-            <div
-              className={`border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer ${
-                isDragging 
-                  ? 'border-primary bg-primary/10 shadow-lg' 
-                  : 'border-base-300 hover:border-primary hover:bg-base-300/50 hover:shadow-md'
-              }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-              
-              <div className="space-y-6">
-                <div className="text-8xl drop-shadow-md">📷</div>
-                <div>
-                  <div className="text-2xl font-medium mb-2">上传人物照片</div>
-                  <div className="text-base text-base-content/60">
-                    拖拽照片到此处或点击选择文件
-                  </div>
-                  <div className="text-sm text-base-content/50 mt-2">
-                    支持 JPG、PNG、GIF 等格式，建议图片清晰度较高
-                  </div>
-                </div>
+        <div
+          className={`border-2 border-dashed rounded-2xl p-16 text-center transition-all cursor-pointer max-w-2xl mx-auto ${
+            isDragging 
+              ? 'border-primary bg-primary/10 shadow-xl' 
+              : 'border-base-300 hover:border-primary hover:bg-base-100/80 hover:shadow-lg'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+          
+          <div className="space-y-8">
+            <div className="text-9xl drop-shadow-lg">📷</div>
+            <div className="space-y-3">
+              <div className="text-3xl font-semibold text-base-content">上传人物照片</div>
+              <div className="text-lg text-base-content/70">
+                拖拽照片到此处或点击选择文件
+              </div>
+              <div className="text-base text-base-content/50">
+                支持 JPG、PNG、GIF 等格式，建议图片清晰度较高
               </div>
             </div>
           </div>
@@ -215,90 +211,99 @@ const ImageProcessor = () => {
 
       {/* 步骤2: 确认和配置 */}
       {step === 2 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-8 max-w-4xl mx-auto">
           {/* 原图预览 */}
-          <div className="card bg-base-200 shadow-2xl border border-base-300">
-            <div className="card-body">
-              <h3 className="card-title text-lg mb-4">📸 原始照片</h3>
-              <div className="relative">
+          <div className="text-center space-y-4">
+            <h3 className="text-2xl font-semibold text-base-content">📸 确认原始照片</h3>
+            <div className="relative inline-block">
+              {imagePreview ? (
                 <img 
                   src={imagePreview} 
                   alt="原始照片" 
-                  className="w-full h-auto max-h-96 object-contain rounded-lg shadow-lg border border-base-300/50 cursor-pointer hover:opacity-90 transition-opacity"
+                  className="max-w-full max-h-80 object-contain rounded-xl shadow-lg border border-base-300/30 cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300"
                   onClick={() => setPreviewImage({ src: imagePreview, title: '原始照片' })}
                 />
-                <button 
-                  className="btn btn-sm btn-circle btn-ghost absolute top-2 right-2 shadow-md hover:shadow-lg transition-shadow"
-                  onClick={resetToUpload}
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="mt-4">
-                <div className="text-sm text-success mb-2">✅ {selectedImage?.name}</div>
-                <button 
-                  className="btn btn-outline btn-sm w-full shadow-sm hover:shadow-md transition-shadow"
-                  onClick={resetToUpload}
-                >
-                  重新选择照片
-                </button>
-              </div>
+              ) : (
+                <div className="w-full h-80 bg-base-200 rounded-xl flex items-center justify-center border border-base-300/30">
+                  <span className="text-base-content/50">加载中...</span>
+                </div>
+              )}
+              <button 
+                className="absolute -top-3 -right-3 w-8 h-8 bg-base-100 border border-base-300 rounded-full flex items-center justify-center shadow-md hover:shadow-lg hover:bg-error hover:text-error-content transition-all duration-200"
+                onClick={resetToUpload}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="text-success font-medium">✅ {selectedImage?.name}</div>
+              <button 
+                className="px-6 py-2 bg-base-200 hover:bg-base-300 rounded-lg transition-colors duration-200 text-sm font-medium"
+                onClick={resetToUpload}
+              >
+                重新选择照片
+              </button>
             </div>
           </div>
 
+          {/* 分隔线 */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-base-300 to-base-300"></div>
+            <div className="text-lg font-semibold text-base-content">⚙️ 生成配置</div>
+            <div className="flex-1 h-px bg-gradient-to-r from-base-300 via-base-300 to-transparent"></div>
+          </div>
+            
           {/* 配置区域 */}
-          <div className="card bg-base-200 shadow-2xl border border-base-300">
-            <div className="card-body">
-              <h3 className="card-title text-lg mb-4">⚙️ 生成配置</h3>
-              
-              {/* 提示词配置 */}
-              <div className="space-y-4">
-                <div>
-                  <label className="label">
-                    <span className="label-text font-medium">手办生成提示词</span>
-                    <span className="label-text-alt cursor-pointer hover:text-primary transition-colors" onClick={() => {
-                      setPrompt(presetPrompts["默认手办"])
-                    }}>恢复默认</span>
-                  </label>
-                  <textarea
-                    className="textarea textarea-bordered w-full h-32 text-sm shadow-sm focus:shadow-md transition-shadow"
-                    placeholder="描述你想要的手办效果..."
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                  />
-                </div>
-
-                {/* 预设选项 - 动态生成按钮 */}
-                {Object.keys(presetPrompts).length > 0 && (
-                  <div>
-                    <label className="label">
-                      <span className="label-text font-medium">快速选择</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(presetPrompts).map(([name, promptText]) => (
-                        <button 
-                          key={name}
-                          className="btn btn-sm btn-outline shadow-sm hover:shadow-md transition-shadow"
-                          onClick={() => setPrompt(promptText)}
-                        >
-                          {name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 生成按钮 */}
-              <div className="card-actions justify-end mt-6">
-                <button
-                  className={`btn btn-primary btn-lg w-full shadow-lg hover:shadow-xl transition-shadow ${isProcessing ? 'loading' : ''}`}
-                  onClick={handleProcess}
-                  disabled={isProcessing || !selectedImage || !prompt.trim()}
+          <div className="space-y-6">
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <label className="text-base font-medium text-base-content">
+                  手办生成提示词
+                </label>
+                <button 
+                  className="text-sm text-base-content/60 hover:text-primary transition-colors cursor-pointer" 
+                  onClick={() => setPrompt(presetPrompts["默认手办"])}
                 >
-                  {isProcessing ? '正在生成手办...' : '🎯 生成手办效果'}
+                  恢复默认
                 </button>
               </div>
+              <textarea
+                className="w-full h-32 p-4 border border-base-300 rounded-xl bg-base-50 focus:bg-base-100 focus:border-primary focus:outline-none resize-none transition-all duration-200"
+                placeholder="描述你想要的手办效果..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </div>
+
+            {/* 预设选项 */}
+            {Object.keys(presetPrompts).length > 0 && (
+              <div>
+                <label className="block text-base font-medium text-base-content mb-3">
+                  快速选择预设
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(presetPrompts).map(([name, promptText]) => (
+                    <button 
+                      key={name}
+                      className="px-4 py-2 bg-base-200 hover:bg-primary hover:text-primary-content rounded-lg transition-all duration-200 text-sm font-medium"
+                      onClick={() => setPrompt(promptText)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 生成按钮 */}
+            <div className="pt-4">
+              <button
+                className={`w-full max-w-md mx-auto block py-3 px-6 bg-primary hover:bg-primary-focus text-primary-content font-medium text-base rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 ${isProcessing ? 'loading' : ''}`}
+                onClick={handleProcess}
+                disabled={isProcessing || !selectedImage || !prompt.trim()}
+              >
+                {isProcessing ? '正在生成手办...' : '🎯 生成手办效果'}
+              </button>
             </div>
           </div>
         </div>
@@ -306,36 +311,68 @@ const ImageProcessor = () => {
 
       {/* 步骤3: 结果展示 */}
       {step === 3 && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* 对比展示 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {/* 原图 */}
-            <div className="card bg-base-200 shadow-2xl border border-base-300">
-              <div className="card-body">
-                <h3 className="card-title text-lg mb-4">📸 原始照片</h3>
-                <img 
-                  src={imagePreview} 
-                  alt="原始照片" 
-                  className="w-full h-auto max-h-96 object-contain rounded-lg shadow-lg border border-base-300/50 cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setPreviewImage({ src: imagePreview, title: '原始照片' })}
-                />
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-base-content mb-2">原始照片</h3>
+                <span className="inline-block text-sm text-base-content/60 bg-base-300/50 px-3 py-1 rounded-full">原图</span>
+              </div>
+              <div className="relative group flex justify-center">
+                {imagePreview ? (
+                  <>
+                    <img 
+                      src={imagePreview} 
+                      alt="原始照片" 
+                      className="max-w-full max-h-96 w-auto h-auto rounded-2xl shadow-xl border border-base-300/20 cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 object-contain"
+                      onClick={() => setPreviewImage({ src: imagePreview, title: '原始照片' })}
+                    />
+                    <div 
+                      className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 rounded-2xl flex items-center justify-center cursor-pointer"
+                      onClick={() => setPreviewImage({ src: imagePreview, title: '原始照片' })}
+                    >
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full text-sm font-medium pointer-events-none">
+                        点击放大查看
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full max-w-md h-96 bg-base-200 rounded-2xl flex items-center justify-center border border-base-300/20">
+                    <span className="text-base-content/50">加载中...</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* 生成结果 */}
-            <div className="card bg-base-200 shadow-2xl border border-base-300">
-              <div className="card-body">
-                <h3 className="card-title text-lg mb-4">✨ 手办效果</h3>
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-base-content mb-2">手办效果</h3>
+                <span className="inline-block text-sm text-white bg-primary px-3 py-1 rounded-full">AI 生成</span>
+              </div>
+              <div className="relative group flex justify-center">
                 {result && result.type === 'image' ? (
-                  <img 
-                    src={result.imageUrl} 
-                    alt="生成的手办效果图" 
-                    className="w-full h-auto max-h-96 object-contain rounded-lg shadow-lg border border-base-300/50 cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => setPreviewImage({ src: result.imageUrl, title: '手办效果图' })}
-                  />
+                  <>
+                    <img 
+                      src={result.imageUrl} 
+                      alt="生成的手办效果图" 
+                      className="max-w-full max-h-96 w-auto h-auto rounded-2xl shadow-xl border border-base-300/20 cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 object-contain"
+                      onClick={() => setPreviewImage({ src: result.imageUrl, title: '手办效果图' })}
+                    />
+                    <div 
+                      className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 rounded-2xl flex items-center justify-center cursor-pointer"
+                      onClick={() => setPreviewImage({ src: result.imageUrl, title: '手办效果图' })}
+                    >
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full text-sm font-medium pointer-events-none">
+                        点击放大查看
+                      </div>
+                    </div>
+                  </>
                 ) : (
-                  <div className="bg-base-100 rounded-lg p-4 shadow-inner">
-                    <div className="prose max-w-none">
+                  <div className="bg-base-100 rounded-2xl p-8 min-h-80 flex items-center justify-center border border-base-300/20 w-full">
+                    <div className="text-center text-base-content/60">
                       <pre className="whitespace-pre-wrap text-sm">
                         {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
                       </pre>
@@ -346,44 +383,58 @@ const ImageProcessor = () => {
             </div>
           </div>
 
+          {/* 分隔线 */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-base-300 to-transparent"></div>
+            <div className="text-sm text-base-content/40">操作选项</div>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-base-300 to-transparent"></div>
+          </div>
+
           {/* 操作按钮 */}
-          <div className="card bg-base-200 shadow-2xl border border-base-300">
-            <div className="card-body">
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                {result && result.type === 'image' && (
-                  <a 
-                    href={result.imageUrl}
-                    download="手办效果图.png"
-                    className="btn btn-success btn-lg flex-1 sm:flex-initial shadow-lg hover:shadow-xl transition-shadow"
-                  >
-                    💾 下载手办图片
-                  </a>
-                )}
-                <button 
-                  className="btn btn-outline btn-lg flex-1 sm:flex-initial shadow-sm hover:shadow-md transition-shadow"
-                  onClick={goBackToConfirm}
-                >
-                  🔄 重新生成
-                </button>
-                <button 
-                  className="btn btn-ghost btn-lg flex-1 sm:flex-initial shadow-sm hover:shadow-md transition-shadow"
-                  onClick={resetToUpload}
-                >
-                  🆕 上传新照片
-                </button>
-              </div>
-            </div>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-2xl mx-auto">
+            {result && result.type === 'image' && (
+              <a 
+                href={result.imageUrl}
+                download="手办效果图.png"
+                className="btn btn-success btn-lg px-8 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex-1 sm:flex-initial"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                下载图片
+              </a>
+            )}
+            <button 
+              className="btn btn-outline btn-lg px-8 transform hover:-translate-y-0.5 transition-all duration-200 flex-1 sm:flex-initial"
+              onClick={goBackToConfirm}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              重新生成
+            </button>
+            <button 
+              className="btn btn-ghost btn-lg px-8 transform hover:-translate-y-0.5 transition-all duration-200 flex-1 sm:flex-initial"
+              onClick={resetToUpload}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              上传新照片
+            </button>
           </div>
         </div>
       )}
 
       {/* 错误提示 */}
       {error && (
-        <div className="alert alert-error">
-          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{error}</span>
+        <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error">
+          <div className="flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{error}</span>
+          </div>
         </div>
       )}
 

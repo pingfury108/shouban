@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 const ImageViewer = ({ src, title, onClose }) => {
   const [scale, setScale] = useState(1)
@@ -41,8 +41,7 @@ const ImageViewer = ({ src, title, onClose }) => {
   }
 
   // 鼠标滚轮缩放
-  const handleWheel = (e) => {
-    e.preventDefault()
+  const handleWheel = useCallback((e) => {
     const rect = containerRef.current.getBoundingClientRect()
     const centerX = rect.width / 2
     const centerY = rect.height / 2
@@ -60,7 +59,7 @@ const ImageViewer = ({ src, title, onClose }) => {
     
     setScale(newScale)
     setPosition({ x: newX, y: newY })
-  }
+  }, [scale, position])
 
   // 鼠标拖拽
   const handleMouseDown = (e) => {
@@ -85,7 +84,7 @@ const ImageViewer = ({ src, title, onClose }) => {
     setIsDragging(false)
   }
 
-  // 键盘快捷键
+  // 键盘快捷键和事件监听器
   useEffect(() => {
     const handleKeyPress = (e) => {
       switch (e.key) {
@@ -115,16 +114,34 @@ const ImageViewer = ({ src, title, onClose }) => {
       }
     }
 
+    // 添加非被动的滚轮事件监听器
+    const handleWheelPassive = (e) => {
+      e.preventDefault()
+      handleWheel(e)
+    }
+
+    const container = containerRef.current
+
     window.addEventListener('keydown', handleKeyPress)
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
+    
+    // 添加非被动的滚轮事件
+    if (container) {
+      container.addEventListener('wheel', handleWheelPassive, { passive: false })
+    }
 
     return () => {
       window.removeEventListener('keydown', handleKeyPress)
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
+      
+      // 清理滚轮事件
+      if (container) {
+        container.removeEventListener('wheel', handleWheelPassive)
+      }
     }
-  }, [isDragging, dragStart, position, scale])
+  }, [isDragging, dragStart, position, scale, handleWheel])
 
   // 初始化时适应窗口
   useEffect(() => {
@@ -133,16 +150,16 @@ const ImageViewer = ({ src, title, onClose }) => {
   }, [src])
 
   return (
-    <div className="modal modal-open">
-      <div className="modal-box max-w-7xl w-[95vw] h-[95vh] p-0 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm">
+      <div className="bg-base-100 max-w-7xl w-[95vw] h-[95vh] rounded-2xl shadow-2xl mx-auto mt-[2.5vh] overflow-hidden">
         {/* 工具栏 */}
-        <div className="flex justify-between items-center p-4 bg-base-200 border-b">
+        <div className="flex justify-between items-center p-4 bg-base-200 border-b border-base-300/20">
           <h3 className="font-bold text-lg">{title}</h3>
           <div className="flex items-center gap-2">
             <div className="text-sm text-base-content/60">
               {Math.round(scale * 100)}%
             </div>
-            <div className="btn-group">
+            <div className="flex gap-1">
               <button 
                 className="btn btn-sm btn-outline"
                 onClick={zoomOut}
@@ -194,7 +211,6 @@ const ImageViewer = ({ src, title, onClose }) => {
         <div 
           ref={containerRef}
           className="relative w-full h-[calc(100%-4rem)] bg-black/5 overflow-hidden cursor-grab active:cursor-grabbing"
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
         >
           <div className="absolute inset-0 flex items-center justify-center">
@@ -221,7 +237,7 @@ const ImageViewer = ({ src, title, onClose }) => {
       </div>
       
       {/* 点击背景关闭 */}
-      <div className="modal-backdrop" onClick={onClose}></div>
+      <div className="absolute inset-0 -z-10" onClick={onClose}></div>
     </div>
   )
 }
