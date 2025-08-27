@@ -1,13 +1,15 @@
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Annotated
 import os
 import logging
 import base64
 from dotenv import load_dotenv
 from .openroute_client import OpenRouteClient
+from .auth import AuthService
 
 # 加载环境变量
 load_dotenv()
@@ -18,6 +20,15 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# 初始化认证服务
+POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://127.0.0.1:8090")
+COLLECTION_NAME = os.getenv("POCKETBASE_COLLECTION", "shouban")
+
+auth_service = AuthService(
+    pb_url=POCKETBASE_URL,
+    collection_name=COLLECTION_NAME
+)
 
 app = FastAPI(
     title="图片处理 API",
@@ -37,6 +48,32 @@ app.add_middleware(
 logger.info("FastAPI 应用初始化完成")
 
 
+# 认证依赖函数
+async def verify_api_key(x_api_key: Annotated[str, Header(alias="X-API-Key")]) -> dict:
+    """验证请求头中的 API 密钥"""
+    logger.info(f"开始验证请求头中的 API 密钥")
+    
+    if not x_api_key:
+        logger.warning("请求头中缺少 X-API-Key")
+        raise HTTPException(
+            status_code=401,
+            detail="Missing X-API-Key header"
+        )
+    
+    # 使用认证服务验证 API 密钥
+    result = await auth_service.verify_api_key(x_api_key)
+    
+    if not result["valid"]:
+        logger.warning(f"API 密钥验证失败: {result.get('error')}")
+        raise HTTPException(
+            status_code=401,
+            detail=result.get("error", "Invalid API key")
+        )
+    
+    logger.info(f"API 密钥验证成功，用户ID: {result.get('user_id')}")
+    return result
+
+
 class ImageProcessResponse(BaseModel):
     """图片处理响应模型"""
     success: bool
@@ -49,14 +86,17 @@ class ImageProcessResponse(BaseModel):
 @app.post("/process-image")
 async def process_image(
     file: UploadFile = File(..., description="要处理的图片文件"),
-    prompt: str = Form(..., description="处理提示词")
+    prompt: str = Form(..., description="处理提示词"),
+    auth_result: dict = Depends(verify_api_key)
 ):
     """
     处理图片接口 - 直接返回生成的图片文件
     
+    需要在请求头中包含有效的 X-API-Key（PocketBase 记录 ID）
     接受图片文件和提示词，通过 OpenRoute API 调用 Gemini 模型处理图片，直接返回生成的图片
     """
-    logger.info(f"收到图片处理请求")
+    logger.info(f"收到图片处理请求，记录ID: {auth_result.get('record_id')}")
+    logger.info(f"当前使用次数: {auth_result.get('count', 0)}")
     logger.info(f"文件名: {file.filename}")
     logger.info(f"文件类型: {file.content_type}")
     logger.info(f"提示词长度: {len(prompt)} 字符")
@@ -79,6 +119,7 @@ async def process_image(
         )
     else:
         logger.info("OpenRoute API 密钥已获取")
+        logger.debug(f"API 密钥前缀: {api_key[:10]}...")  # 只显示前10位用于调试
     
     try:
         # 读取图片数据
@@ -117,13 +158,19 @@ async def process_image(
                     image_bytes = base64.b64decode(image_data)
                     logger.info(f"成功解码图片，大小: {len(image_bytes)} 字节")
                     
+                    # 增加使用次数
+                    api_key = auth_result.get('record_id')
+                    if api_key:
+                        await auth_service.increment_usage_count(api_key)
+                    
                     # 直接返回图片文件
                     return Response(
                         content=image_bytes,
                         media_type=f"image/{image_format}",
                         headers={
                             "Content-Disposition": f"inline; filename=generated_image.{image_format}",
-                            "Cache-Control": "no-cache"
+                            "Cache-Control": "no-cache",
+                            "X-Usage-Count": str(auth_result.get('count', 0) + 1)
                         }
                     )
                     
@@ -158,11 +205,42 @@ async def process_image(
         )
 
 
+@app.get("/record-info")
+async def get_record_info(auth_result: dict = Depends(verify_api_key)):
+    """获取当前记录信息"""
+    record_id = auth_result.get("record_id")
+    
+    if record_id:
+        record_info = await auth_service.get_record_info(record_id)
+        if record_info:
+            return {
+                "success": True,
+                "record": record_info
+            }
+    
+    return {
+        "success": False,
+        "error": "Record not found"
+    }
+
+
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
     logger.info("健康检查请求")
-    return {"status": "ok", "message": "服务运行正常"}
+    
+    # 测试 PocketBase 连接
+    pb_status = auth_service.test_connection()
+    
+    return {
+        "status": "ok" if pb_status else "warning",
+        "message": "服务运行正常",
+        "pocketbase": "connected" if pb_status else "disconnected",
+        "config": {
+            "pocketbase_url": POCKETBASE_URL,
+            "collection_name": COLLECTION_NAME
+        }
+    }
 
 
 @app.get("/models")

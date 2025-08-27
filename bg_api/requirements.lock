@@ -10,6 +10,8 @@
 #   universal: false
 
 -e file:.
+aiofiles==24.1.0
+    # via bg-api
 annotated-types==0.7.0
     # via pydantic
 anyio==4.10.0
@@ -46,9 +48,11 @@ httpcore==1.0.9
 httptools==0.6.4
     # via uvicorn
 httpx==0.28.1
+    # via bg-api
     # via fastapi
     # via fastapi-cloud-cli
     # via openai
+    # via pocketbase
 idna==3.10
     # via anyio
     # via email-validator
@@ -67,6 +71,8 @@ openai==1.102.0
     # via bg-api
 pillow==11.3.0
     # via bg-api
+pocketbase==0.15.0
+    # via bg-api
 pydantic==2.11.7
     # via bg-api
     # via fastapi
@@ -77,6 +83,7 @@ pydantic-core==2.33.2
 pygments==2.19.2
     # via rich
 python-dotenv==1.1.1
+    # via bg-api
     # via uvicorn
 python-multipart==0.0.20
     # via bg-api
