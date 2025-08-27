@@ -1,6 +1,108 @@
 import { useState, useRef, useEffect } from 'react'
 import ImageViewer from './ImageViewer'
 
+// Toast 通知组件
+const Toast = ({ message, type = 'error', onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000) // 4秒后自动关闭
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success': return '✅'
+      case 'warning': return '⚠️'
+      case 'info': return 'ℹ️'
+      default: return '❌'
+    }
+  }
+
+  const getColor = () => {
+    switch (type) {
+      case 'success': return 'alert-success'
+      case 'warning': return 'alert-warning' 
+      case 'info': return 'alert-info'
+      default: return 'alert-error'
+    }
+  }
+
+  return (
+    <div className="toast toast-bottom toast-end">
+      <div className={`alert ${getColor()} shadow-lg max-w-md`}>
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{getIcon()}</span>
+          <span className="text-sm">{message}</span>
+          <button
+            className="btn btn-ghost btn-xs btn-circle ml-2"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// API设置模态框组件
+const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
+  const [inputKey, setInputKey] = useState(currentKey || '')
+
+  const handleSave = () => {
+    if (inputKey.trim()) {
+      onSave(inputKey.trim())
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-base-100 rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-semibold">用户设置</h3>
+          <button 
+            className="btn btn-sm btn-circle btn-ghost"
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-base-content mb-2">
+              用户名
+            </label>
+            <input
+              type="text"
+              className="input input-bordered w-full"
+              placeholder="请输入您的用户名"
+              value={inputKey}
+              onChange={(e) => setInputKey(e.target.value)}
+              autoFocus
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <button
+              className="btn btn-outline flex-1"
+              onClick={onClose}
+            >
+              取消
+            </button>
+            <button
+              className="btn btn-primary flex-1"
+              onClick={handleSave}
+              disabled={!inputKey.trim()}
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const ImageProcessor = () => {
   const [selectedImage, setSelectedImage] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -11,8 +113,21 @@ const ImageProcessor = () => {
   const [isDragging, setIsDragging] = useState(false)
   const [step, setStep] = useState(1) // 1: 上传, 2: 确认, 3: 结果
   const [previewImage, setPreviewImage] = useState(null) // 预览放大的图片
+  const [apiKey, setApiKey] = useState('') // 用户名
+  const [showApiSettings, setShowApiSettings] = useState(false) // 显示用户设置
+  const [toast, setToast] = useState(null) // Toast 通知状态
+  const [isInitialized, setIsInitialized] = useState(false) // 初始化状态
   
   const fileInputRef = useRef(null)
+
+  // Toast 通知函数
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type })
+  }
+
+  const hideToast = () => {
+    setToast(null)
+  }
 
   // 预设提示词配置 - 在这里添加新的预设即可自动生成按钮
   const presetPrompts = {
@@ -20,6 +135,40 @@ const ImageProcessor = () => {
     // 在此添加更多预设，格式：
     // "名称": "提示词内容",
   }
+
+  // 初始化用户名：从URL参数或localStorage获取
+  useEffect(() => {
+    // 从URL查询参数获取用户名
+    const urlParams = new URLSearchParams(window.location.search)
+    const keyFromUrl = urlParams.get('key') || urlParams.get('apikey') || urlParams.get('api_key') || urlParams.get('user') || urlParams.get('username')
+    
+    if (keyFromUrl) {
+      // 如果URL中有用户名，保存到localStorage并设置状态
+      localStorage.setItem('shouban_username', keyFromUrl)
+      setApiKey(keyFromUrl)
+      
+      // 清除URL参数（可选）
+      const newUrl = new URL(window.location)
+      newUrl.searchParams.delete('key')
+      newUrl.searchParams.delete('apikey') 
+      newUrl.searchParams.delete('api_key')
+      newUrl.searchParams.delete('user')
+      newUrl.searchParams.delete('username')
+      window.history.replaceState({}, '', newUrl)
+    } else {
+      // 从localStorage获取
+      const savedKey = localStorage.getItem('shouban_username')
+      if (savedKey) {
+        setApiKey(savedKey)
+      } else {
+        // 如果没有用户名，不自动显示设置界面，让用户手动点击设置
+        // setShowApiSettings(true) - 已移除自动弹窗
+      }
+    }
+    
+    // 标记初始化完成
+    setIsInitialized(true)
+  }, [])
 
   // 组件卸载时清理URL对象
   useEffect(() => {
@@ -43,7 +192,7 @@ const ImageProcessor = () => {
       }
       reader.readAsDataURL(file)
     } else {
-      setError('请选择有效的图片文件')
+      showToast('请选择有效的图片文件', 'warning')
     }
   }
 
@@ -75,12 +224,17 @@ const ImageProcessor = () => {
 
   const handleProcess = async () => {
     if (!selectedImage) {
-      setError('请先选择图片')
+      showToast('请先选择图片', 'warning')
       return
     }
     
     if (!prompt.trim()) {
-      setError('请输入处理提示词')
+      showToast('请输入处理提示词', 'warning')
+      return
+    }
+
+    if (!apiKey.trim()) {
+      showToast('请先设置用户名', 'warning')
       return
     }
 
@@ -96,6 +250,9 @@ const ImageProcessor = () => {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8097'
       const response = await fetch(`${apiUrl}/process-image`, {
         method: 'POST',
+        headers: {
+          'X-API-Key': apiKey
+        },
         body: formData,
       })
 
@@ -109,23 +266,29 @@ const ImageProcessor = () => {
           const imageUrl = URL.createObjectURL(imageBlob)
           setResult({ imageUrl, type: 'image' })
           setStep(3) // 进入结果展示步骤
+          showToast('手办效果图生成成功!', 'success')
         } else {
           // 如果是JSON响应（兼容旧版本）
           const data = await response.json()
           if (data.success) {
             setResult(data.result)
             setStep(3)
+            showToast('手办效果图生成成功!', 'success')
           } else {
-            setError(data.error || '处理失败')
+            showToast(data.error || '处理失败', 'error')
           }
         }
       } else {
         // 处理HTTP错误
-        const errorData = await response.json().catch(() => ({}))
-        setError(errorData.detail || `请求失败: ${response.status}`)
+        if (response.status === 401) {
+          showToast('用户名无效或已过期，请检查用户设置', 'error')
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          showToast(errorData.detail || `请求失败: ${response.status}`, 'error')
+        }
       }
     } catch (err) {
-      setError('请求失败：' + err.message)
+      showToast('请求失败：' + err.message, 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -153,8 +316,74 @@ const ImageProcessor = () => {
     setStep(2)
   }
 
+  // 保存用户名
+  const saveApiKey = (key) => {
+    const trimmedKey = key.trim()
+    if (trimmedKey) {
+      localStorage.setItem('shouban_username', trimmedKey)
+      setApiKey(trimmedKey)
+      setShowApiSettings(false)
+      showToast('用户名设置成功!', 'success')
+    }
+  }
+
+  // 清除用户名
+  const clearApiKey = () => {
+    localStorage.removeItem('shouban_username')
+    setApiKey('')
+    setShowApiSettings(true)
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* 初始化加载状态 */}
+      {!isInitialized && (
+        <div className="flex items-center justify-center min-h-96">
+          <div className="flex flex-col items-center gap-4">
+            <div className="loading loading-spinner loading-lg text-primary"></div>
+            <span className="text-base text-base-content/70">正在初始化...</span>
+          </div>
+        </div>
+      )}
+
+      {/* 主要内容 - 只在初始化完成后显示 */}
+      {isInitialized && (
+        <>
+          {/* API设置模态框 */}
+          {showApiSettings && <ApiSettingsModal onSave={saveApiKey} onClose={() => setShowApiSettings(false)} currentKey={apiKey} />}
+
+          {/* 顶部工具栏 - 更subtle的设计 */}
+      <div className="flex justify-between items-start mb-2">
+        <div className="text-center flex-1">
+          <h1 className="text-3xl font-bold text-base-content mb-2">手办生成工具</h1>
+          <p className="text-base text-base-content/60">上传照片，AI 帮你生成手办效果图</p>
+        </div>
+        <div className="flex items-center gap-1 ml-4">
+          {!apiKey && (
+            <div className="flex items-center gap-1 text-xs text-warning mr-2">
+              <span>⚠️</span>
+              <span>需要设置用户名</span>
+            </div>
+          )}
+          <button
+            className="btn btn-xs btn-ghost btn-circle opacity-50 hover:opacity-100"
+            onClick={() => setShowApiSettings(true)}
+            title={apiKey ? '管理用户设置' : '设置用户名'}
+          >
+            ⚙️
+          </button>
+          {apiKey && (
+            <button
+              className="btn btn-xs btn-ghost btn-circle opacity-50 hover:opacity-100 text-error"
+              onClick={clearApiKey}
+              title="清除用户名"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 进度指示器 */}
       <div className="flex justify-center mb-8">
         <div className="steps steps-horizontal w-full max-w-md">
@@ -224,8 +453,11 @@ const ImageProcessor = () => {
                   onClick={() => setPreviewImage({ src: imagePreview, title: '原始照片' })}
                 />
               ) : (
-                <div className="w-full h-80 bg-base-200 rounded-xl flex items-center justify-center border border-base-300/30">
-                  <span className="text-base-content/50">加载中...</span>
+                <div className="w-full max-w-xs mx-auto h-40 bg-base-200 rounded-xl flex items-center justify-center border border-base-300/30">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="loading loading-spinner loading-md text-base-content/50"></div>
+                    <span className="text-sm text-base-content/50">加载中...</span>
+                  </div>
                 </div>
               )}
               <button 
@@ -298,12 +530,62 @@ const ImageProcessor = () => {
             {/* 生成按钮 */}
             <div className="pt-4">
               <button
-                className={`w-full max-w-md mx-auto block py-3 px-6 bg-primary hover:bg-primary-focus text-primary-content font-medium text-base rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 ${isProcessing ? 'loading' : ''}`}
+                className={`relative w-full max-w-md mx-auto block py-4 px-6 font-medium text-base rounded-xl shadow-lg transition-all duration-300 overflow-hidden ${
+                  isProcessing 
+                    ? 'bg-primary/80 cursor-not-allowed' 
+                    : apiKey 
+                      ? 'bg-gradient-to-r from-primary to-primary-focus hover:from-primary-focus hover:to-primary text-primary-content hover:shadow-xl transform hover:-translate-y-1 active:scale-95' 
+                      : 'bg-base-300 text-base-content/50 cursor-not-allowed'
+                }`}
                 onClick={handleProcess}
-                disabled={isProcessing || !selectedImage || !prompt.trim()}
+                disabled={isProcessing || !selectedImage || !prompt.trim() || !apiKey}
               >
-                {isProcessing ? '正在生成手办...' : '🎯 生成手办效果'}
+                {/* 背景动画效果 */}
+                {isProcessing && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary-focus to-primary bg-[length:200%_100%] animate-pulse"></div>
+                )}
+                
+                {/* 按钮内容 */}
+                <div className="relative flex items-center justify-center gap-3">
+                  {isProcessing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-primary-content/30 border-t-primary-content rounded-full animate-spin"></div>
+                      <span className="text-primary-content">正在生成手办...</span>
+                      <div className="flex gap-1 ml-2">
+                        <div className="w-1 h-1 bg-primary-content/60 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                        <div className="w-1 h-1 bg-primary-content/60 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                        <div className="w-1 h-1 bg-primary-content/60 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl">🎯</span>
+                      <span>生成手办效果</span>
+                      {apiKey && (
+                        <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                {/* 进度条效果（可选） */}
+                {isProcessing && (
+                  <div className="absolute bottom-0 left-0 h-1 bg-primary-content/20 w-full">
+                    <div className="h-full bg-primary-content/60 animate-pulse w-0" style={{animation: 'progress 3s ease-in-out infinite'}}></div>
+                  </div>
+                )}
               </button>
+              
+              {!apiKey && (
+                <div className="text-center mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                  <p className="text-sm text-warning font-medium flex items-center justify-center gap-2">
+                    <span>⚠️</span>
+                    <span>请先设置用户名才能生成图片</span>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -339,8 +621,11 @@ const ImageProcessor = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="w-full max-w-md h-96 bg-base-200 rounded-2xl flex items-center justify-center border border-base-300/20">
-                    <span className="text-base-content/50">加载中...</span>
+                  <div className="w-full max-w-xs mx-auto h-40 bg-base-200 rounded-2xl flex items-center justify-center border border-base-300/20">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="loading loading-spinner loading-md text-base-content/50"></div>
+                      <span className="text-sm text-base-content/50">加载中...</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -426,16 +711,13 @@ const ImageProcessor = () => {
         </div>
       )}
 
-      {/* 错误提示 */}
-      {error && (
-        <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error">
-          <div className="flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        </div>
+      {/* Toast 通知 */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
       )}
 
       {/* 图片预览模态框 */}
@@ -445,6 +727,8 @@ const ImageProcessor = () => {
           title={previewImage.title}
           onClose={() => setPreviewImage(null)}
         />
+      )}
+      </>
       )}
     </div>
   )
