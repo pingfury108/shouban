@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ImageViewer from './ImageViewer'
 
 // Toast 通知组件
@@ -56,7 +56,7 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-base-100 rounded-2xl shadow-2xl max-w-md w-full p-6">
+      <div className="bg-base-100 rounded-2xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-semibold">用户设置</h3>
           <button 
@@ -67,7 +67,7 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
           </button>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-base-content mb-2">
               用户名
@@ -82,7 +82,7 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
             />
           </div>
           
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3">
             <button
               className="btn btn-outline flex-1"
               onClick={onClose}
@@ -96,6 +96,47 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
             >
               保存
             </button>
+          </div>
+
+          {/* 购买用户名提示 */}
+          <div className="bg-info/10 border border-info/20 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-info text-lg">💡</div>
+              <div className="flex-1">
+                <h4 className="font-medium text-info mb-2">如何获取用户名？</h4>
+                <p className="text-sm text-base-content/70 mb-3">
+                  需要购买用户名才能使用手办生成功能。请添加微信好友并备注"手办用户名"。
+                </p>
+                
+                {/* 微信二维码 */}
+                <div className="bg-white rounded-lg p-3 inline-block border border-base-300/30">
+                  <img 
+                    src="/WechatIMG2.jpg" 
+                    alt="微信二维码" 
+                    className="w-32 h-32 object-contain"
+                    style={{ imageRendering: 'crisp-edges' }}
+                  />
+                  <p className="text-xs text-center text-base-content/60 mt-2">
+                    扫码添加微信好友
+                  </p>
+                </div>
+                
+                <div className="mt-3 text-sm text-base-content/60">
+                  <p className="flex items-center gap-2">
+                    <span className="text-success">✓</span>
+                    <span>添加微信好友</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="text-success">✓</span>
+                    <span>备注"手办用户名"</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <span className="text-success">✓</span>
+                    <span>获取专属用户名</span>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -117,8 +158,117 @@ const ImageProcessor = () => {
   const [showApiSettings, setShowApiSettings] = useState(false) // 显示用户设置
   const [toast, setToast] = useState(null) // Toast 通知状态
   const [isInitialized, setIsInitialized] = useState(false) // 初始化状态
+  const [dailyUsage, setDailyUsage] = useState({ count: 0, limit: 0 }) // 每日使用次数
+  const [userDailyLimit, setUserDailyLimit] = useState(0) // 用户每日限额，从API获取
   
   const fileInputRef = useRef(null)
+
+  // 从API获取用户每日使用限额
+  const fetchUserDailyLimit = useCallback(async (username) => {
+    if (!username) {
+      setUserDailyLimit(0)
+      return 0
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8097'
+      const response = await fetch(`${apiUrl}/record-info`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': username
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // API 返回的数据结构: { success: true, record: { count: 3, ... } }
+        const limit = data.record?.count || 0
+        setUserDailyLimit(limit)
+        return limit
+      } else {
+        console.warn('获取用户限额失败，设置为0')
+        setUserDailyLimit(0)
+        return 0
+      }
+    } catch (error) {
+      console.error('请求用户限额失败:', error)
+      setUserDailyLimit(0)
+      return 0
+    }
+  }, [])
+
+  // 获取今天的日期字符串 (YYYY-MM-DD)
+  const getTodayString = useCallback(() => {
+    const today = new Date()
+    return today.getFullYear() + '-' + 
+           String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(today.getDate()).padStart(2, '0')
+  }, [])
+
+  // 获取用户今日使用次数
+  const getDailyUsage = useCallback((username) => {
+    if (!username) return { count: 0, date: getTodayString() }
+    
+    const storageKey = `shouban_usage_${username}`
+    const stored = localStorage.getItem(storageKey)
+    
+    if (!stored) {
+      return { count: 0, date: getTodayString() }
+    }
+    
+    try {
+      const data = JSON.parse(stored)
+      const today = getTodayString()
+      
+      // 如果不是今天的数据，重置计数
+      if (data.date !== today) {
+        return { count: 0, date: today }
+      }
+      
+      return data
+    } catch (error) {
+      console.error('解析使用次数数据失败:', error)
+      return { count: 0, date: getTodayString() }
+    }
+  }, [getTodayString])
+
+  // 更新用户今日使用次数
+  const updateDailyUsage = useCallback((username) => {
+    if (!username) return false
+    
+    const current = getDailyUsage(username)
+    const newCount = current.count + 1
+    const today = getTodayString()
+    
+    const newData = {
+      count: newCount,
+      date: today
+    }
+    
+    const storageKey = `shouban_usage_${username}`
+    localStorage.setItem(storageKey, JSON.stringify(newData))
+    
+    // 更新状态
+    setDailyUsage({ count: newCount, limit: userDailyLimit })
+    
+    return newCount <= userDailyLimit
+  }, [getDailyUsage, getTodayString, userDailyLimit])
+
+  // 检查用户是否还有使用次数
+  const canUseService = useCallback((username) => {
+    if (!username || userDailyLimit === 0) return false
+    
+    const usage = getDailyUsage(username)
+    return usage.count < userDailyLimit
+  }, [getDailyUsage, userDailyLimit])
+
+  // 获取剩余次数
+  const getRemainingUsage = useCallback((username) => {
+    if (!username) return 0
+    
+    const usage = getDailyUsage(username)
+    return Math.max(0, userDailyLimit - usage.count)
+  }, [getDailyUsage, userDailyLimit])
 
   // Toast 通知函数
   const showToast = (message, type = 'error') => {
@@ -169,6 +319,21 @@ const ImageProcessor = () => {
     // 标记初始化完成
     setIsInitialized(true)
   }, [])
+
+  // 监听用户名变化，更新使用次数状态和获取用户限额
+  useEffect(() => {
+    if (apiKey) {
+      // 获取用户限额
+      fetchUserDailyLimit(apiKey).then(limit => {
+        // 获取使用记录
+        const usage = getDailyUsage(apiKey)
+        setDailyUsage({ count: usage.count, limit })
+      })
+    } else {
+      setDailyUsage({ count: 0, limit: 0 })
+      setUserDailyLimit(0)
+    }
+  }, [apiKey, fetchUserDailyLimit, getDailyUsage])
 
   // 组件卸载时清理URL对象
   useEffect(() => {
@@ -238,6 +403,16 @@ const ImageProcessor = () => {
       return
     }
 
+    // 检查使用次数限制
+    if (!canUseService(apiKey)) {
+      if (userDailyLimit === 0) {
+        showToast('当前账户暂无使用权限，请联系管理员', 'warning')
+      } else {
+        showToast(`今日使用次数已达上限(${userDailyLimit}次)，请明天再试`, 'warning')
+      }
+      return
+    }
+
     setIsProcessing(true)
     setError('')
     setResult(null)
@@ -266,14 +441,24 @@ const ImageProcessor = () => {
           const imageUrl = URL.createObjectURL(imageBlob)
           setResult({ imageUrl, type: 'image' })
           setStep(3) // 进入结果展示步骤
-          showToast('手办效果图生成成功!', 'success')
+          
+          // 成功生成后更新使用次数
+          updateDailyUsage(apiKey)
+          const remaining = getRemainingUsage(apiKey) - 1 // 减1因为刚刚使用了一次
+          
+          showToast(`手办效果图生成成功! 今日还可使用${remaining}次`, 'success')
         } else {
           // 如果是JSON响应（兼容旧版本）
           const data = await response.json()
           if (data.success) {
             setResult(data.result)
             setStep(3)
-            showToast('手办效果图生成成功!', 'success')
+            
+            // 成功生成后更新使用次数
+            updateDailyUsage(apiKey)
+            const remaining = getRemainingUsage(apiKey) - 1
+            
+            showToast(`手办效果图生成成功! 今日还可使用${remaining}次`, 'success')
           } else {
             showToast(data.error || '处理失败', 'error')
           }
@@ -533,12 +718,12 @@ const ImageProcessor = () => {
                 className={`relative w-full max-w-md mx-auto block py-4 px-6 font-medium text-base rounded-xl shadow-lg transition-all duration-300 overflow-hidden ${
                   isProcessing 
                     ? 'bg-primary/80 cursor-not-allowed' 
-                    : apiKey 
+                    : (apiKey && canUseService(apiKey))
                       ? 'bg-gradient-to-r from-primary to-primary-focus hover:from-primary-focus hover:to-primary text-primary-content hover:shadow-xl transform hover:-translate-y-1 active:scale-95' 
                       : 'bg-base-300 text-base-content/50 cursor-not-allowed'
                 }`}
                 onClick={handleProcess}
-                disabled={isProcessing || !selectedImage || !prompt.trim() || !apiKey}
+                disabled={isProcessing || !selectedImage || !prompt.trim() || !apiKey || !canUseService(apiKey)}
               >
                 {/* 背景动画效果 */}
                 {isProcessing && (
@@ -577,6 +762,55 @@ const ImageProcessor = () => {
                   </div>
                 )}
               </button>
+              
+              {/* 使用次数显示 */}
+              {apiKey && (
+                <div className="text-center mt-3 p-2 bg-base-200/50 rounded-lg">
+                  {userDailyLimit === 0 ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-error">
+                      <span>⚠️</span>
+                      <span className="font-medium">当前账户暂无使用权限</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-center gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base-content/60">今日已用:</span>
+                          <span className={`font-medium ${dailyUsage.count >= dailyUsage.limit ? 'text-error' : 'text-success'}`}>
+                            {dailyUsage.count}
+                          </span>
+                        </div>
+                        <div className="w-px h-4 bg-base-content/20"></div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base-content/60">剩余:</span>
+                          <span className={`font-medium ${dailyUsage.count >= dailyUsage.limit ? 'text-error' : 'text-primary'}`}>
+                            {Math.max(0, dailyUsage.limit - dailyUsage.count)}
+                          </span>
+                        </div>
+                        <div className="w-px h-4 bg-base-content/20"></div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base-content/60">限额:</span>
+                          <span className="font-medium text-base-content">
+                            {dailyUsage.limit}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* 进度条 */}
+                      <div className="mt-2">
+                        <div className="w-full bg-base-300 rounded-full h-1.5">
+                          <div 
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              dailyUsage.count >= dailyUsage.limit ? 'bg-error' : 'bg-primary'
+                            }`}
+                            style={{ width: `${Math.min(100, (dailyUsage.count / dailyUsage.limit) * 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
               
               {!apiKey && (
                 <div className="text-center mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
