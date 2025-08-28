@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ImageViewer from './ImageViewer'
+import wechatQR from '../assets/wechat-qr.jpg'
 
 // Toast 通知组件
 const Toast = ({ message, type = 'error', onClose }) => {
@@ -111,7 +112,7 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
                 {/* 微信二维码 */}
                 <div className="bg-white rounded-lg p-3 inline-block border border-base-300/30">
                   <img 
-                    src="/WechatIMG2.jpg" 
+                    src={wechatQR} 
                     alt="微信二维码" 
                     className="w-32 h-32 object-contain"
                     style={{ imageRendering: 'crisp-edges' }}

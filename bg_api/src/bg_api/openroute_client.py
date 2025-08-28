@@ -2,7 +2,6 @@ import base64
 import logging
 from typing import Optional
 from openai import AsyncOpenAI
-from PIL import Image
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)  # 改为 DEBUG 级别
