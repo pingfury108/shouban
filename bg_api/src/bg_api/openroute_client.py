@@ -196,6 +196,9 @@ class OpenRouteClient:
                     
                     if ratio < 0.5:
                         logger.warning("比例异常低！图片数据可能在其他位置")
+                        # 打印 API 返回的文本信息
+                        content_text = data["choices"][0]["message"].get("content", "")
+                        logger.warning(f"API 返回的文本内容: {content_text}")
             
             # 构建返回结果
             result = data.copy()  # 使用原始数据
