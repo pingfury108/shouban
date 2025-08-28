@@ -294,6 +294,19 @@ const ImageProcessor = () => {
     return Math.max(0, userDailyLimit - usage.count)
   }, [getDailyUsage, userDailyLimit])
 
+  // 获取带时间戳的下载文件名
+  const getDownloadFileName = useCallback(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hour = String(now.getHours()).padStart(2, '0')
+    const minute = String(now.getMinutes()).padStart(2, '0')
+    const second = String(now.getSeconds()).padStart(2, '0')
+    
+    return `手办效果图_${year}${month}${day}_${hour}${minute}${second}.png`
+  }, [])
+
   // Toast 通知函数
   const showToast = (message, type = 'error') => {
     setToast({ message, type })
@@ -305,7 +318,8 @@ const ImageProcessor = () => {
 
   // 预设提示词配置 - 在这里添加新的预设即可自动生成按钮
   const presetPrompts = {
-    "默认手办": "turn this photo into a character figure. Behind it, place a box with the character's image printed on it, and a computer showing the Blender modeling process on its screen. In front of the box, add a round plastic base with the character figure standing on it. Make the PVC material look clear, and set the scene indoors if possible"
+    "默认手办": "turn this photo into a character figure. Behind it, place a box with the character's image printed on it, and a computer showing the Blender modeling process on its screen. In front of the box, add a round plastic base with the character figure standing on it. Make the PVC material look clear, and set the scene indoors if possible",
+    "老照片修复": "1.只截取照片内容部分，移除桌面的背景、边框 2.修复照片里面的污损 3.把照片做成彩色的 4.高清放大照片"
     // 在此添加更多预设，格式：
     // "名称": "提示词内容",
   }
@@ -938,7 +952,7 @@ const ImageProcessor = () => {
             {result && result.type === 'image' && (
               <a 
                 href={result.imageUrl}
-                download="手办效果图.png"
+                download={getDownloadFileName()}
                 className="btn btn-success btn-lg px-8 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex-1 sm:flex-initial"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
