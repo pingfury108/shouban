@@ -8,6 +8,19 @@ const ImageViewer = ({ src, title, onClose }) => {
   const imageRef = useRef(null)
   const containerRef = useRef(null)
 
+  // 获取带时间戳的下载文件名
+  const getDownloadFileName = useCallback(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hour = String(now.getHours()).padStart(2, '0')
+    const minute = String(now.getMinutes()).padStart(2, '0')
+    const second = String(now.getSeconds()).padStart(2, '0')
+    
+    return `${title}_${year}${month}${day}_${hour}${minute}${second}.png`
+  }, [title])
+
   // 重置位置和缩放
   const resetTransform = () => {
     setScale(1)
@@ -191,7 +204,7 @@ const ImageViewer = ({ src, title, onClose }) => {
             </div>
             <a 
               href={src}
-              download={`${title}.png`}
+              download={getDownloadFileName()}
               className="btn btn-sm btn-success"
               title="下载图片"
             >
