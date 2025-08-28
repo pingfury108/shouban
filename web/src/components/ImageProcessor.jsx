@@ -115,7 +115,20 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
                     alt="微信二维码" 
                     className="w-32 h-32 object-contain"
                     style={{ imageRendering: 'crisp-edges' }}
+                    onError={(e) => {
+                      console.error('二维码图片加载失败')
+                      e.target.style.display = 'none'
+                      e.target.nextElementSibling.style.display = 'block'
+                    }}
                   />
+                  <div 
+                    className="w-32 h-32 bg-base-200 rounded flex items-center justify-center text-sm text-base-content/60"
+                    style={{ display: 'none' }}
+                  >
+                    二维码加载失败
+                    <br />
+                    请联系管理员
+                  </div>
                   <p className="text-xs text-center text-base-content/60 mt-2">
                     扫码添加微信好友
                   </p>
