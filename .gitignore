@@ -242,14 +242,6 @@ temp_uploads/
 
 # Test images
 test_image.*
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-*.webp
-
 # API Keys and secrets
 .env.local
 .env.production
