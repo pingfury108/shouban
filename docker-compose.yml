@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  bg-api:
+    build:
+      context: ./bg_api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENROUTE_API_KEY=${OPENROUTE_API_KEY}
+      - POCKETBASE_URL=${POCKETBASE_URL:-http://pocketbase:8090}
+      - POCKETBASE_COLLECTION=${POCKETBASE_COLLECTION:-shouban}
+    env_file:
+      - .env
+    depends_on:
+      - pocketbase
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  pocketbase:
+    image: spectado/pocketbase:latest
+    ports:
+      - "8090:8090"
+    volumes:
+      - pocketbase_data:/pb/pb_data
+      - ./pocketbase:/pb/pb_hooks
+    command: ["serve", "--http=0.0.0.0:8090"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  pocketbase_data:
+    driver: local
+
+networks:
+  default:
+    name: bg-api-network

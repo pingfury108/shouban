@@ -149,6 +149,16 @@ const ApiSettingsModal = ({ onSave, onClose, currentKey }) => {
                     <span>获取专属用户名</span>
                   </p>
                 </div>
+                
+                {/* 价格信息 */}
+                <div className="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-success mb-1">💰 购买价格</div>
+                    <div className="text-2xl font-bold text-primary mb-1">¥1/天</div>
+                    <div className="text-sm text-base-content/70">20次调用配额</div>
+                    <div className="text-xs text-base-content/60 mt-1">超值优惠，每天仅需一元</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

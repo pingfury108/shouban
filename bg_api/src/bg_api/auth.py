@@ -1,12 +1,17 @@
 import asyncio
 import logging
+import os
 from datetime import datetime
 from typing import Optional
 from pocketbase import PocketBase
 from pocketbase.client import ClientResponseError
 
 # 配置日志
-logging.basicConfig(level=logging.DEBUG)  # 启用 DEBUG 级别
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -146,35 +151,6 @@ class AuthService:
                 "valid": False,
                 "error": f"Verification error: {str(e)}"
             }
-    
-    async def increment_usage_count(self, api_key: str) -> bool:
-        """
-        增加 API 使用次数
-        
-        Args:
-            api_key: API 密钥（记录 ID）
-            
-        Returns:
-            是否成功更新
-        """
-        try:
-            logger.info(f"增加使用次数: {api_key}")
-            
-            # 获取当前记录
-            record = self.pb.collection(self.collection_name).get_one(api_key)
-            current_count = getattr(record, 'count', 0)
-            
-            # 更新使用次数
-            updated_record = self.pb.collection(self.collection_name).update(api_key, {
-                "count": current_count + 1
-            })
-            
-            logger.info(f"使用次数已更新: {current_count} -> {current_count + 1}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新使用次数失败: {e}")
-            return False
     
     def test_connection(self) -> bool:
         """

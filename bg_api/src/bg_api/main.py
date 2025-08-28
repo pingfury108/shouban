@@ -15,8 +15,9 @@ from .auth import AuthService
 load_dotenv()
 
 # 配置日志
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -158,19 +159,14 @@ async def process_image(
                     image_bytes = base64.b64decode(image_data)
                     logger.info(f"成功解码图片，大小: {len(image_bytes)} 字节")
                     
-                    # 增加使用次数
-                    api_key = auth_result.get('record_id')
-                    if api_key:
-                        await auth_service.increment_usage_count(api_key)
-                    
-                    # 直接返回图片文件
+                    # 直接返回图片文件（使用次数由前端记录）
                     return Response(
                         content=image_bytes,
                         media_type=f"image/{image_format}",
                         headers={
                             "Content-Disposition": f"inline; filename=generated_image.{image_format}",
                             "Cache-Control": "no-cache",
-                            "X-Usage-Count": str(auth_result.get('count', 0) + 1)
+                            "X-Usage-Count": str(auth_result.get('count', 0))
                         }
                     )
                     

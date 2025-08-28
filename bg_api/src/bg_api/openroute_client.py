@@ -1,10 +1,15 @@
 import base64
 import logging
+import os
 from typing import Optional
 from openai import AsyncOpenAI
 
 # 配置日志
-logging.basicConfig(level=logging.DEBUG)  # 改为 DEBUG 级别
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
